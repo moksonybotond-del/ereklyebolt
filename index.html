@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ereklyebolt — kutatási szimuláció</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* layout: one centred column; a slim demo bar on top, then a single shop panel that swaps screens.
+   The item is a tall showcase card: art on a rarity-lit stage, then name, lore, perks, price. */
+:root{
+  --bg:#120d1c; --panel:#201834; --panel-deep:#150f24; --edge:#3a2a58;
+  --ink:#f1e9ff; --ink-dim:#b7a9d9;
+  --gold:#e7c472; --gold-dim:#8a713a;
+  --ember:#ff8a4c; --garnet:#ef6a6a; --moon:#9fb8ff; --good:#5fbf85;
+  --font-display:"Cinzel", Georgia, "Times New Roman", serif;
+  --font-body:"Work Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --radius:16px;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:
+    radial-gradient(60% 50% at 50% -10%, #3a2359 0%, transparent 60%),
+    radial-gradient(80% 60% at 90% 110%, #1c3a4a 0%, transparent 55%),
+    var(--bg);
+  background-color:var(--bg);
+  color:var(--ink);
+  font-family:var(--font-body);
+  padding:max(20px, env(safe-area-inset-top,0px)) max(16px, env(safe-area-inset-right,0px)) max(28px, env(safe-area-inset-bottom,0px)) max(16px, env(safe-area-inset-left,0px));
+  min-height:100%;
+}
+.wrap{max-width:560px; margin:0 auto; display:flex; flex-direction:column; gap:16px; min-width:0}
+h1,h2,.disp{font-family:var(--font-display); letter-spacing:.01em; text-wrap:balance; margin:0}
+p{margin:0; line-height:1.55; font-size:15px; color:var(--ink-dim)}
+strong{color:var(--ink)}
+button{font:inherit; cursor:pointer; border-radius:10px; border:1px solid transparent}
+button:focus-visible, .seg button:focus-visible{outline:2px solid var(--moon); outline-offset:2px}
+
+.head{text-align:center}
+.eyebrow{font-family:var(--font-display); font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--gold); margin-bottom:4px}
+.title{font-size:22px}
+
+.panel{background:linear-gradient(180deg, var(--panel), #190f29); border:1px solid var(--edge); border-radius:var(--radius);
+  padding:22px 20px; box-shadow:0 20px 60px -20px rgba(0,0,0,.6); display:flex; flex-direction:column; gap:14px; position:relative}
+.panel h2{font-size:19px}
+
+/* player card */
+.player{display:flex; gap:14px; align-items:center; background:var(--panel-deep); border:1px solid var(--edge); border-radius:13px; padding:12px 14px}
+.player svg{width:68px; height:68px; flex:none; filter:drop-shadow(0 0 10px rgba(255,138,76,.35))}
+.flame{animation:flame .9s ease-in-out infinite alternate; transform-box:fill-box; transform-origin:50% 100%}
+@keyframes flame{0%{transform:scale(1,1) skewX(0)} 35%{transform:scale(.93,1.14) skewX(-4deg)} 70%{transform:scale(1.06,.92) skewX(4deg)} 100%{transform:scale(.97,1.08) skewX(-2deg)}}
+.player .who{font-family:var(--font-display); color:var(--ink); font-size:16px}
+.player dl{display:flex; flex-wrap:wrap; gap:2px 16px; margin:4px 0 0; font-size:12.5px; color:var(--ink-dim)}
+.player dl div{display:flex; gap:5px}
+.player dt{color:var(--ink-dim)} .player dd{margin:0; color:var(--ink); font-variant-numeric:tabular-nums}
+
+.wallet{display:flex; align-items:center; justify-content:space-between; gap:10px; background:#15102480; border:1px solid var(--edge);
+  border-radius:11px; padding:10px 14px; font-size:13.5px; color:var(--ink-dim)}
+.wallet b{color:var(--gold); font-family:var(--font-display); font-variant-numeric:tabular-nums}
+
+/* item showcase */
+.show{border:1px solid var(--rar); border-radius:14px; overflow:hidden; background:var(--panel-deep)}
+.show.legend{--rar:var(--ember)} .show.epic{--rar:var(--garnet)}
+.stage{position:relative; display:flex; justify-content:center; padding:34px 12px 12px; overflow:hidden;
+  background:radial-gradient(70% 90% at 50% 55%, color-mix(in srgb, var(--rar) 34%, transparent) 0%, transparent 70%), #0f0a1b}
+.stage svg{position:relative; width:min(240px, 72%); height:auto; filter:drop-shadow(0 10px 18px rgba(0,0,0,.55))}
+.stage canvas{position:absolute; inset:0; width:100%; height:100%; pointer-events:none}
+.fl{animation:float 4.6s ease-in-out infinite}
+.gem{animation:gem 2.4s ease-in-out infinite; transform-box:fill-box; transform-origin:center}
+.shine{animation:shine 4.2s ease-in-out infinite}
+.sway{animation:sway 5.2s ease-in-out infinite; transform-box:fill-box; transform-origin:50% 0}
+.tw{animation:tw 2.6s ease-in-out infinite}
+@keyframes float{0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)}}
+@keyframes gem{0%,100%{filter:brightness(1); transform:scale(1)} 50%{filter:brightness(1.45); transform:scale(1.07)}}
+@keyframes shine{0%,35%{transform:translateX(0) skewX(-18deg)} 75%,100%{transform:translateX(260px) skewX(-18deg)}}
+@keyframes sway{0%,100%{transform:skewX(-1.6deg)} 50%{transform:skewX(1.6deg)}}
+@keyframes tw{0%,100%{opacity:.25} 50%{opacity:1}}
+.rar-chip{position:absolute; left:12px; top:12px; font-size:11px; letter-spacing:.1em; text-transform:uppercase;
+  color:#160c05; background:var(--rar); border-radius:999px; padding:4px 10px; font-weight:600}
+.meta{padding:14px 16px 4px; display:flex; flex-direction:column; gap:8px}
+.item-name{font-family:var(--font-display); font-size:19px; color:var(--ink)}
+.lore{font-style:italic; font-size:13.5px}
+.perks{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:5px; font-size:13.5px; color:var(--ink)}
+.perks li{display:flex; gap:8px; align-items:baseline}
+.perks li::before{content:""; width:7px; height:7px; flex:none; transform:rotate(45deg) translateY(-1px); background:var(--rar)}
+.pressure{display:flex; flex-wrap:wrap; gap:4px 16px; font-size:12px; color:var(--ink-dim)}
+.urgency{color:#ff9c6b; font-variant-numeric:tabular-nums}
+.urgency b{font-family:var(--font-display)}
+.social b{color:var(--gold); font-variant-numeric:tabular-nums}
+.pricebar{display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin:10px 16px 14px; padding-top:12px; border-top:1px solid var(--edge)}
+.pricebar span{font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-dim)}
+.price{font-family:var(--font-display); color:var(--gold); font-size:20px; font-variant-numeric:tabular-nums; text-align:right}
+.price small{display:block; font-family:var(--font-body); font-size:11.5px; color:var(--ink-dim)}
+
+.btnrow{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+.btn-primary{background:linear-gradient(180deg,#f3d896,var(--gold)); color:#241607; font-weight:600; border-color:#caa352; flex:1; min-width:140px; padding:12px 18px; font-size:14.5px}
+.btn-buy{background:linear-gradient(180deg,#78e0a0,var(--good)); color:#07271a; font-weight:700; border-color:#3f9466; flex:2.2; min-width:160px; font-size:16px; padding:14px 18px; animation:pulseglow 2.2s ease-in-out infinite}
+@keyframes pulseglow{0%,100%{box-shadow:0 0 0 0 rgba(95,191,133,.35)} 50%{box-shadow:0 0 0 7px rgba(95,191,133,0)}}
+.btn-pass{background:transparent; color:var(--ink-dim); flex:.8; min-width:90px; font-size:12px; padding:8px 10px; text-decoration:underline; text-decoration-color:var(--edge)}
+.btn-pass:hover{color:var(--ink)}
+button:disabled{opacity:.45; cursor:default; animation:none}
+.banner{border-radius:11px; padding:11px 14px; font-size:13.5px; border:1px solid}
+.banner.ok{background:#14321f; border-color:var(--good); color:#bdeccf}
+.banner.no{background:#2a1f16; border-color:var(--gold-dim); color:#e7d8b8}
+
+.modal-bg{position:fixed; inset:0; background:rgba(8,5,14,.72); display:flex; align-items:center; justify-content:center; padding:16px; z-index:20; overflow:auto}
+.modal{max-width:380px; width:100%}
+.pack{display:flex; gap:12px; align-items:center; background:var(--panel-deep); border:1px solid var(--edge); border-radius:13px; padding:12px 14px}
+.pack svg{width:44px; height:44px; flex:none}
+.pack .pn{font-family:var(--font-display); color:var(--ink); font-size:15.5px}
+.pack .pd{font-size:12.5px}
+.pack .price{margin-left:auto; font-size:17px}
+
+[hidden]{display:none!important}
+@media (max-width:420px){ .title{font-size:19px} .panel{padding:18px 15px} }
+@media (prefers-reduced-motion:reduce){ .btn-buy,.fl,.gem,.shine,.sway,.tw,.flame{animation:none} .tw{opacity:.8} }
+
+/* kérdőív-elemek (az eredeti kísérletből) */
+.progress{display:flex; gap:5px; justify-content:center}
+.progress i{width:26px; height:4px; border-radius:3px; background:var(--edge); display:block}
+.progress i.on{background:var(--gold)}
+.field{display:flex; flex-direction:column; gap:7px}
+label{font-size:12.5px; color:var(--gold); text-transform:uppercase; letter-spacing:.08em}
+select, input[type=number]{width:100%; background:#140d22; border:1px solid var(--edge); color:var(--ink); border-radius:9px; padding:11px 12px; font:inherit; font-size:15px}
+select:focus, input:focus{outline:2px solid var(--moon); outline-offset:1px}
+.checkbox-row{display:flex; gap:10px; align-items:flex-start; background:var(--panel-deep); border:1px solid var(--edge); border-radius:11px; padding:13px}
+.checkbox-row input{margin-top:3px; accent-color:var(--gold)}
+.checkbox-row label{text-transform:none; letter-spacing:normal; font-size:13.5px; color:var(--ink)}
+.scale{display:flex; gap:6px}
+.scale button{flex:1; padding:12px 0; background:var(--panel-deep); border:1px solid var(--edge); color:var(--ink-dim); font-family:var(--font-display)}
+.scale button.sel{background:linear-gradient(180deg,#9b7af0,#8b6ae0); color:#160a2e; border-color:#6a4fc2; font-weight:700}
+.scale-labels{display:flex; justify-content:space-between; font-size:11px; color:var(--ink-dim)}
+.btn-ghost{background:transparent; color:var(--ink-dim); border-color:var(--edge); padding:10px 16px; font-size:14px; align-self:flex-start}
+.btn-ghost:hover{color:var(--ink); border-color:var(--gold-dim)}
+.code-box{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px; background:#0e0918; border:1px solid var(--edge); border-radius:9px; padding:12px; color:var(--ink-dim); word-break:break-all; max-height:110px; overflow:auto}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <p class="eyebrow">Égi Lángok — kutatási szimuláció</p>
+    <h1 class="title">Ereklyebolt</h1>
+  </div>
+  <div class="progress" id="progress"></div>
+  <div class="panel" id="panel"><!-- JS tölti fel --></div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+var ART = {
+  armor: `<svg class="fl" viewBox="0 0 200 224" role="img" aria-label="Sárkányvér-páncél"><defs>
+<linearGradient id="aP" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d9523a"/><stop offset=".55" stop-color="#8f2126"/><stop offset="1" stop-color="#3a0d1a"/></linearGradient>
+<linearGradient id="aD" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#84202a"/><stop offset="1" stop-color="#2a0a14"/></linearGradient>
+<linearGradient id="aG" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffe7a6"/><stop offset=".5" stop-color="#e7b04f"/><stop offset="1" stop-color="#96591c"/></linearGradient>
+<radialGradient id="aGem" cx=".4" cy=".3" r=".8"><stop offset="0" stop-color="#fff6d0"/><stop offset=".45" stop-color="#ffa24c"/><stop offset="1" stop-color="#a3200f"/></radialGradient>
+<pattern id="aSc" width="16" height="12" patternUnits="userSpaceOnUse"><path d="M0 1 q8 11 16 0 M-8 7 q8 11 16 0 M8 7 q8 11 16 0" fill="none" stroke="#ffb98a" stroke-opacity=".4" stroke-width="1.2"/></pattern>
+<clipPath id="aClip"><path d="M66 50 L100 62 L134 50 L147 94 L137 150 L100 172 L63 150 L53 94 Z"/></clipPath>
+<g id="aTas"><path d="M62 158 L84 172 L80 206 L60 190 Z" fill="url(#aD)" stroke="url(#aG)" stroke-width="2" stroke-linejoin="round"/><path d="M66 170 L79 178" stroke="#ffb98a" stroke-opacity=".35" stroke-width="1.5"/></g>
+<g id="aPaul">
+<path d="M30 56 L12 34 L42 47 Z M47 44 L40 20 L58 41 Z" fill="url(#aG)" stroke="#96591c" stroke-width="1" stroke-linejoin="round"/>
+<path d="M34 116 C40 104 54 98 70 98 L70 111 C60 111 50 117 44 127 Z" fill="url(#aD)" stroke="url(#aG)" stroke-width="2" stroke-linejoin="round"/>
+<path d="M26 100 C34 84 52 76 72 78 L72 93 C58 93 44 99 36 113 Z" fill="url(#aD)" stroke="url(#aG)" stroke-width="2" stroke-linejoin="round"/>
+<path d="M20 84 C14 56 40 38 68 46 L74 72 C56 70 38 76 28 94 Z" fill="url(#aP)" stroke="url(#aG)" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M20 84 C14 56 40 38 68 46 L74 72 C56 70 38 76 28 94 Z" fill="url(#aSc)"/>
+<path d="M26 66 C32 54 46 48 62 50" fill="none" stroke="#ffd2b0" stroke-opacity=".5" stroke-width="2" stroke-linecap="round"/>
+<g fill="#ffe7a6"><circle cx="33" cy="89" r="2"/><circle cx="49" cy="79" r="2"/><circle cx="66" cy="75" r="2"/></g></g>
+<g id="aHalf"><path d="M68 56 L97 66 L97 108 C84 112 68 106 59 94 Z" fill="#ff8a66" opacity=".2"/>
+<path d="M89 99 C77 90 66 93 57 82 C63 101 76 111 92 107 Z" fill="url(#aG)" stroke="#96591c" stroke-width=".8"/>
+<path d="M69 124 L97 134 M67 138 L97 149" stroke="#22060f" stroke-opacity=".55" stroke-width="2" stroke-linecap="round"/>
+<circle cx="62" cy="96" r="1.8" fill="#ffe7a6"/><circle cx="70" cy="146" r="1.8" fill="#ffe7a6"/></g></defs>
+<use href="#aTas"/><use href="#aTas" transform="translate(200 0) scale(-1 1)"/>
+<path d="M86 176 L100 184 L114 176 L112 210 L100 218 L88 210 Z" fill="url(#aD)" stroke="url(#aG)" stroke-width="2" stroke-linejoin="round"/>
+<path d="M100 186 L100 216" stroke="url(#aG)" stroke-opacity=".6" stroke-width="1.5"/>
+<path d="M66 50 L100 62 L134 50 L147 94 L137 150 L100 172 L63 150 L53 94 Z" fill="url(#aP)"/>
+<path d="M66 50 L100 62 L134 50 L147 94 L137 150 L100 172 L63 150 L53 94 Z" fill="url(#aSc)"/>
+<use href="#aHalf"/><use href="#aHalf" transform="translate(200 0) scale(-1 1)"/>
+<g clip-path="url(#aClip)"><rect class="shine" x="-40" y="30" width="24" height="170" fill="#fff" opacity=".22"/></g>
+<path d="M66 50 L100 62 L134 50 L147 94 L137 150 L100 172 L63 150 L53 94 Z" fill="none" stroke="url(#aG)" stroke-width="3" stroke-linejoin="round"/>
+<path d="M100 62 L100 80 M100 118 L100 170" stroke="url(#aG)" stroke-opacity=".75" stroke-width="2"/>
+<path d="M63 148 L100 170 L137 148 L135 161 L100 184 L65 161 Z" fill="url(#aG)" stroke="#96591c" stroke-width="1.2" stroke-linejoin="round"/>
+<circle cx="100" cy="176" r="5.5" fill="url(#aGem)" stroke="#96591c" stroke-width="1.2"/>
+<use href="#aPaul"/><use href="#aPaul" transform="translate(200 0) scale(-1 1)"/>
+<path d="M76 36 L100 30 L124 36 L129 54 L100 66 L71 54 Z" fill="url(#aD)" stroke="url(#aG)" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M100 30 L100 66 M82 40 L96 46 M118 40 L104 46" stroke="url(#aG)" stroke-opacity=".6" stroke-width="1.5" stroke-linecap="round"/>
+<g class="gem"><path d="M100 80 L113 98 L100 118 L87 98 Z" fill="url(#aGem)" stroke="url(#aG)" stroke-width="2.5" stroke-linejoin="round"/><path d="M100 85 L107 97 L100 100 Z" fill="#fff" opacity=".55"/></g>
+</svg>`,
+  cloak: `<svg class="fl" viewBox="0 0 200 224" role="img" aria-label="Hamuszárny-köpeny"><defs>
+<linearGradient id="cO" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7a1c26"/><stop offset=".5" stop-color="#3a0d18"/><stop offset="1" stop-color="#16060b"/></linearGradient>
+<linearGradient id="cM" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d9523a"/><stop offset="1" stop-color="#6a1820"/></linearGradient>
+<linearGradient id="cI" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a0810"/><stop offset=".55" stop-color="#b8321c"/><stop offset="1" stop-color="#ffb347"/></linearGradient>
+<linearGradient id="cG" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffe7a6"/><stop offset=".5" stop-color="#e7b04f"/><stop offset="1" stop-color="#96591c"/></linearGradient>
+<radialGradient id="cGem" cx=".4" cy=".3" r=".8"><stop offset="0" stop-color="#fff6d0"/><stop offset=".45" stop-color="#ffa24c"/><stop offset="1" stop-color="#a3200f"/></radialGradient>
+<pattern id="cSc" width="16" height="12" patternUnits="userSpaceOnUse"><path d="M0 1 q8 11 16 0 M-8 7 q8 11 16 0 M8 7 q8 11 16 0" fill="none" stroke="#ffb98a" stroke-opacity=".4" stroke-width="1.2"/></pattern>
+<g id="cHalf"><path d="M52 106 C44 140 40 170 34 196 M72 104 C68 146 66 176 64 198" fill="none" stroke="url(#cG)" stroke-opacity=".6" stroke-width="1.8" stroke-linecap="round"/>
+<path d="M88 106 C86 150 84 186 82 216" fill="none" stroke="#0d0306" stroke-opacity=".5" stroke-width="2"/></g>
+<g id="cPaul"><path d="M30 56 L12 34 L42 47 Z M47 44 L40 20 L58 41 Z" fill="url(#cG)" stroke="#96591c" stroke-width="1.4" stroke-linejoin="round"/>
+<path d="M26 100 C34 84 52 76 72 78 L72 93 C58 93 44 99 36 113 Z" fill="url(#cO)" stroke="url(#cG)" stroke-width="3" stroke-linejoin="round"/>
+<path d="M20 84 C14 56 40 38 68 46 L74 72 C56 70 38 76 28 94 Z" fill="url(#cM)" stroke="url(#cG)" stroke-width="3.6" stroke-linejoin="round"/>
+<path d="M20 84 C14 56 40 38 68 46 L74 72 C56 70 38 76 28 94 Z" fill="url(#cSc)"/>
+<path d="M26 66 C32 54 46 48 62 50" fill="none" stroke="#ffd2b0" stroke-opacity=".55" stroke-width="3" stroke-linecap="round"/>
+<g fill="#ffe7a6"><circle cx="33" cy="89" r="2.6"/><circle cx="49" cy="79" r="2.6"/><circle cx="66" cy="75" r="2.6"/></g></g></defs>
+<g class="sway">
+<path d="M30 108 C22 150 18 180 10 210 L34 196 L48 214 L64 198 L82 216 L100 200 L118 216 L136 198 L152 214 L166 196 L190 210 C182 180 178 150 170 108 C146 100 122 102 100 108 C78 102 54 100 30 108 Z" fill="url(#cO)" stroke="url(#cG)" stroke-width="2" stroke-linejoin="round"/>
+<path d="M100 108 C91 140 86 180 82 216 L100 200 L118 216 C114 180 109 140 100 108 Z" fill="url(#cI)"/>
+<use href="#cHalf"/><use href="#cHalf" transform="translate(200 0) scale(-1 1)"/>
+<g fill="none" stroke="#ff9a4c" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+<path class="tw" d="M40 148 l6 9 l-3 10"/><path class="tw" style="animation-delay:-.8s" d="M58 172 l5 8 l-2 7"/><path class="tw" style="animation-delay:-1.5s" d="M26 182 l5 6"/>
+<path class="tw" style="animation-delay:-.4s" d="M158 142 l-5 10 l4 9"/><path class="tw" style="animation-delay:-1.9s" d="M144 174 l-6 8 l2 8"/><path class="tw" style="animation-delay:-1.1s" d="M174 184 l-5 6"/></g>
+<path class="tw" style="animation-duration:3.4s" d="M10 210 L34 196 L48 214 L64 198 L82 216 L100 200 L118 216 L136 198 L152 214 L166 196 L190 210" fill="none" stroke="#ffb347" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>
+</g>
+<path d="M60 70 C42 78 32 92 28 110 C52 100 78 100 100 108 C122 100 148 100 172 110 C168 92 158 78 140 70 C130 90 114 100 100 100 C86 100 70 90 60 70 Z" fill="url(#cM)"/>
+<path d="M60 70 C42 78 32 92 28 110 C52 100 78 100 100 108 C122 100 148 100 172 110 C168 92 158 78 140 70 C130 90 114 100 100 100 C86 100 70 90 60 70 Z" fill="url(#cSc)" stroke="url(#cG)" stroke-width="2.2" stroke-linejoin="round"/>
+<path d="M100 5 C91 10 69 23 60 47 C54 63 58 83 70 93 C80 100 90 101 100 101 C110 101 120 100 130 93 C142 83 146 63 140 47 C131 23 109 10 100 5 Z" fill="url(#cO)"/>
+<path d="M100 5 C91 10 69 23 60 47 C56 59 57 71 62 81 L74 46 L100 24 Z" fill="#c0392f" opacity=".38"/>
+<path d="M100 5 C109 10 131 23 140 47 C144 59 143 71 138 81 L126 46 L100 24 Z" fill="#000" opacity=".22"/>
+<path d="M100 5 C91 10 69 23 60 47 C54 63 58 83 70 93 C80 100 90 101 100 101 C110 101 120 100 130 93 C142 83 146 63 140 47 C131 23 109 10 100 5 Z" fill="none" stroke="url(#cG)" stroke-width="2" stroke-linejoin="round"/>
+<path d="M100 24 L74 46 C66 58 66 76 75 86 C84 94 93 95 100 95 C107 95 116 94 125 86 C134 76 134 58 126 46 Z" fill="#0c0306" stroke="url(#cG)" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M79 52 L100 34 L121 52" fill="none" stroke="#ff8a4c" stroke-opacity=".3" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+<g class="tw" style="animation-duration:3.2s"><ellipse cx="88" cy="64" rx="11" ry="6" fill="#ff8a4c" opacity=".28"/><ellipse cx="112" cy="64" rx="11" ry="6" fill="#ff8a4c" opacity=".28"/>
+<path d="M80 59 L96 65 L83 68.5 Z M120 59 L104 65 L117 68.5 Z" fill="#ffd27a" stroke="#ff8a4c" stroke-width=".8" stroke-linejoin="round"/></g>
+<path d="M100 15 L105 23 L100 31 L95 23 Z" fill="url(#cGem)" stroke="url(#cG)" stroke-width="1.6" stroke-linejoin="round"/>
+<g id="cPL" transform="translate(14 44) scale(.62)"><use href="#cPaul"/></g><use href="#cPL" transform="translate(200 0) scale(-1 1)"/>
+<path d="M74 96 Q86 108 93 104 M126 96 Q114 108 107 104" fill="none" stroke="url(#cG)" stroke-width="2" stroke-linecap="round"/>
+<g class="gem"><path d="M100 91 L110 104 L100 118 L90 104 Z" fill="url(#cGem)" stroke="url(#cG)" stroke-width="2.2" stroke-linejoin="round"/><path d="M100 95 L105 104 L100 106 Z" fill="#fff" opacity=".55"/></g>
+</svg>`,
+  hero: `<svg viewBox="0 0 64 64" aria-hidden="true"><defs>
+<radialGradient id="hBg" cx=".5" cy=".4" r=".75"><stop offset="0" stop-color="#6a1a24"/><stop offset="1" stop-color="#160609"/></radialGradient>
+<linearGradient id="hG" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffe7a6"/><stop offset=".5" stop-color="#e7b04f"/><stop offset="1" stop-color="#96591c"/></linearGradient>
+<linearGradient id="hF" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#e23a14"/><stop offset=".55" stop-color="#ff8a2c"/><stop offset="1" stop-color="#ffd978"/></linearGradient>
+<linearGradient id="hF2" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#ffb347"/><stop offset="1" stop-color="#fff6d0"/></linearGradient>
+<linearGradient id="hP" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d9523a"/><stop offset="1" stop-color="#4a1220"/></linearGradient></defs>
+<rect x="1.5" y="1.5" width="61" height="61" rx="12" fill="url(#hBg)" stroke="url(#hG)" stroke-width="2"/>
+<circle class="tw" style="animation-duration:1.8s" cx="32" cy="26" r="23" fill="#ff8a4c" opacity=".3"/>
+<path class="flame" style="animation-delay:-.3s" d="M13 34 C9 26 14 21 16 13 C19 20 24 24 23 33 Z" fill="url(#hF)"/>
+<path class="flame" style="animation-delay:-.6s" d="M51 34 C55 26 50 21 48 13 C45 20 40 24 41 33 Z" fill="url(#hF)"/>
+<path class="flame" d="M32 3 C38 11 45 15 44 24 C43 31 38 34 32 34 C26 34 21 31 20 24 C19 17 24 15 26 9 C27 14 30 15 31 12 C32 9 31 6 32 3 Z" fill="url(#hF)"/>
+<path class="flame" style="animation-delay:-.45s" d="M32 11 C35 16 38 18 37 23 C36 27 34 29 32 29 C30 29 28 27 27 23 C27 19 30 17 32 11 Z" fill="url(#hF2)"/>
+<path d="M32 18 L49 22.5 L49 37 C49 48 41.5 55.5 32 59.5 C22.5 55.5 15 48 15 37 L15 22.5 Z" fill="url(#hP)" stroke="url(#hG)" stroke-width="2" stroke-linejoin="round"/>
+<path d="M18 25 L31 21.5 L31 30 C26 30 21 32 18 36 Z" fill="#ff9a7a" opacity=".22"/>
+<g id="hHalf"><path d="M26 32 L19 23.5 L29.5 28.5 Z" fill="url(#hG)" stroke="#6b3d10" stroke-width=".7" stroke-linejoin="round"/>
+<path d="M23.4 39 L18.4 42.4 L25 43.4 Z" fill="url(#hG)" stroke="#6b3d10" stroke-width=".7" stroke-linejoin="round"/></g>
+<use href="#hHalf" transform="translate(64 0) scale(-1 1)"/>
+<path d="M32 26.5 L39 32 L41 39 L37 46 L35 52 L32 55 L29 52 L27 46 L23 39 L25 32 Z" fill="url(#hG)" stroke="#6b3d10" stroke-width=".9" stroke-linejoin="round"/>
+<path d="M32 28 L32 47 M27.5 34.5 L31 36.5 M36.5 34.5 L33 36.5 M29.5 47 L32 49 L34.5 47" fill="none" stroke="#6b3d10" stroke-width=".9" stroke-linecap="round" stroke-linejoin="round"/>
+<path class="tw" style="animation-duration:2.2s" d="M26.2 37 L31 39.6 L27.4 40.8 Z M37.8 37 L33 39.6 L36.6 40.8 Z" fill="#e2260f" stroke="#fff3c4" stroke-width=".5" stroke-linejoin="round"/>
+<circle cx="30.6" cy="51.6" r=".8" fill="#4a1220"/><circle cx="33.4" cy="51.6" r=".8" fill="#4a1220"/></svg>`,
+  coins: '<svg viewBox="0 0 44 44" aria-hidden="true"><rect width="44" height="44" rx="9" fill="#241a3f" stroke="#8a713a"/>'
+    + '<g fill="#e7c472" stroke="#8a713a" stroke-width="1"><ellipse cx="22" cy="30" rx="11" ry="4.5"/><ellipse cx="22" cy="24" rx="11" ry="4.5"/><ellipse cx="22" cy="18" rx="11" ry="4.5"/></g></svg>'
+};
+
+
+/* ---------- kísérleti beállítások (változatlanok) ---------- */
+var HELYES_FT = 1600;
+var ITEM1 = { sorszam:1, nev:"Sárkányvér-páncél", art:"armor", rar:"legend", rarNev:"Legendás megjelenés", ft:1000, kredit:800,
+  lore:"A Hamuhegy utolsó sárkányának pikkelyeiből kovácsolták.",
+  perks:["Egyedi páncél-megjelenés a karakterednek","Izzó parázs a vállvérten, harc közben is látszik","A Lángőr kaszthoz tervezték"] };
+var ITEM2 = { sorszam:2, nev:"Hamuszárny-köpeny", art:"cloak", rar:"epic", rarNev:"Epikus megjelenés", ft:600, kredit:480,
+  lore:"A sárkány szárnyhártyájából szabták, a szegélye ma is izzik.",
+  perks:["Egyedi köpeny-megjelenés a karakterednek","Parázsló szegély, mozgás közben szikrát húz","A Sárkányvér-páncéllal teljes szettet ad"] };
+var ARFOLYAM = 0.8; // 1 Ft = 0,8 kredit
+var PACKS = [ {ft:150, kredit:120}, {ft:500, kredit:400}, {ft:1500, kredit:1200} ]; // legkisebb elégséges csomagot választjuk
+
+var STEPS = ["consent","demog","intro","offer1","offer2","estimate","done"];
+
+var state = {
+  id: "v2-" + (window.crypto && crypto.randomUUID ? crypto.randomUUID() : String(Date.now())+Math.random()), // "v2-": az új kinézetű változat jelölője
+  step: 0,
+  csoport: null,
+  egyenleg: 0,
+  elso_elfogadas: null,
+  elso_hajlandosag: null,
+  masodik_elfogadas: null,
+  masodik_hajlandosag: null,
+  becsles: "",
+  indok: "",
+  kor_sav: "", gyakorisag: "", koltes_elozo: "",
+  started: Date.now(),
+  saved: false
+};
+
+var panel = document.getElementById("panel");
+var progressEl = document.getElementById("progress");
+var timer = null, raf = 0;
+
+function stopAnim(){ if (timer){ clearInterval(timer); timer = null; } if (raf){ cancelAnimationFrame(raf); raf = 0; } }
+function render(){
+  stopAnim();
+  renderProgress();
+  panel.innerHTML = "";
+  SCREENS[STEPS[state.step]]();
+}
+function renderProgress(){
+  // a tájékoztató és a köszönő képernyő nem számít lépésnek a sávon
+  var visible = STEPS.slice(1, STEPS.length-1);
+  var idx = visible.indexOf(STEPS[state.step]);
+  progressEl.innerHTML = "";
+  if (idx < 0){ progressEl.hidden = true; return; }
+  progressEl.hidden = false;
+  for (var i=0;i<visible.length;i++){
+    var d = document.createElement("i");
+    if (i<=idx) d.className = "on";
+    progressEl.appendChild(d);
+  }
+}
+function goto(name){ state.step = STEPS.indexOf(name); render(); window.scrollTo(0,0); }
+function next(){ state.step++; render(); window.scrollTo(0,0); }
+
+/* ---------- naplózás: a kitöltő számára láthatatlan, csak lépés- és csoportadat megy el ----------
+   Ebből látszik, hányan hagyják félbe a kitöltést, és hányan lépnek vissza a feltöltő ablakból.
+   Próbamódban (?test=A / ?test=B) és beállított mentési cím nélkül nem küld semmit. */
+var elkuldott = {};
+function logEvent(nev, egyszer){
+  if (saveAndFinish_disabled) return;
+  if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.indexOf("IDE_MASOLD") === 0) return;
+  if (egyszer){ if (elkuldott[nev]) return; elkuldott[nev] = true; }
+  try {
+    var body = new URLSearchParams();
+    body.append("tipus", "esemeny");
+    body.append("esemeny", nev);
+    body.append("valasz_id", state.id);
+    body.append("csoport", state.csoport || "");
+    body.append("ts", new Date().toISOString());
+    fetch(APPS_SCRIPT_URL, { method:"POST", mode:"no-cors", body: body, keepalive:true }).catch(function(){});
+  } catch (e) {}
+}
+
+function el(tag, cls, html){ var e=document.createElement(tag); if(cls) e.className=cls; if(html!=null) e.innerHTML=html; return e; }
+function btn(cls, text){ var b = el("button", cls, text); b.type = "button"; return b; }
+function fmtFt(n){ return n.toLocaleString("hu-HU") + " Ft"; }
+function fmtKredit(n){ return n.toLocaleString("hu-HU") + " kredit"; }
+
+/* drifting particles behind the item: rising embers (kind "armor"); any other kind gives slow starlight */
+function fx(canvas, kind){
+  if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  var ctx = canvas.getContext("2d"), dpr = Math.min(window.devicePixelRatio || 1, 2), w = 0, h = 0, ps = [];
+  function size(){ w = canvas.clientWidth; h = canvas.clientHeight; canvas.width = w*dpr; canvas.height = h*dpr; ctx.setTransform(dpr,0,0,dpr,0,0); }
+  function spawn(first){
+    var ember = kind === "armor";
+    return { x: w*(0.15 + Math.random()*0.7), y: ember ? (first ? Math.random()*h : h + 6) : Math.random()*h,
+      vy: ember ? -(0.25 + Math.random()*0.7) : 0.06 + Math.random()*0.18, ph: Math.random()*6.28,
+      r: ember ? 0.8 + Math.random()*1.8 : 0.6 + Math.random()*1.3, life: first ? Math.random()*200 : 0, max: 160 + Math.random()*160,
+      hue: ember ? 16 + Math.random()*26 : 215 + Math.random()*20 };
+  }
+  size(); for (var i=0;i<(kind === "armor" ? 30 : 36);i++) ps.push(spawn(true));
+  function frame(){
+    if (canvas.clientWidth !== w || canvas.clientHeight !== h) size();
+    ctx.clearRect(0,0,w,h); ctx.globalCompositeOperation = "lighter";
+    for (var i=0;i<ps.length;i++){
+      var p = ps[i]; p.life++; p.y += p.vy; p.ph += 0.03; p.x += Math.sin(p.ph)*(kind === "armor" ? 0.35 : 0.12);
+      var t = p.life/p.max, a = kind === "armor" ? Math.sin(Math.PI*Math.min(t,1))*0.9 : (0.35 + 0.65*Math.abs(Math.sin(p.ph*1.6)))*Math.sin(Math.PI*Math.min(t,1));
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.283);
+      ctx.fillStyle = "hsla(" + p.hue + "," + (kind === "armor" ? "100%,62%" : "90%,86%") + "," + a.toFixed(3) + ")";
+      ctx.shadowColor = "hsla(" + p.hue + ",100%,60%,.9)"; ctx.shadowBlur = 8; ctx.fill();
+      if (p.life >= p.max || p.y < -8 || p.y > h + 8) ps[i] = spawn(false);
+    }
+    raf = requestAnimationFrame(frame);
+  }
+  raf = requestAnimationFrame(frame);
+}
+
+
+/* ---------- képernyők ---------- */
+var SCREENS = {};
+
+SCREENS.consent = function(){
+  panel.appendChild(el("h2", "", "Mielőtt elkezdjük"));
+  panel.appendChild(el("p","", "Ez a feladat egy Budapesti Corvinus Egyetemen készülő szakdolgozat kutatásának része. Egy képzeletbeli videojáték boltjában fogsz vásárlási döntéseket hozni. Az összegek szimuláltak, <strong>valódi pénzt nem kell fizetned</strong>, és a feladat kitöltése kb. 3 percet vesz igénybe."));
+  panel.appendChild(el("p","", "A részvétel <strong>önkéntes</strong>, bármikor abbahagyhatod. A válaszokat <strong>anonim módon</strong>, kizárólag kutatási célra, összesítve dolgozzuk fel — nem kérünk nevet vagy más azonosító adatot."));
+  var row = el("div","checkbox-row");
+  var cb = document.createElement("input"); cb.type="checkbox"; cb.id="consentCb";
+  var lab = el("label",""); lab.htmlFor="consentCb";
+  lab.textContent = "18 éves vagy annál idősebb vagyok, elolvastam a fentieket, és önkéntesen részt veszek a kutatásban.";
+  row.appendChild(cb); row.appendChild(lab);
+  panel.appendChild(row);
+  var btns = el("div","btnrow");
+  var go = btn("btn-primary","Kezdés"); go.disabled = true;
+  cb.addEventListener("change", function(){ go.disabled = !cb.checked; });
+  go.addEventListener("click", next);
+  btns.appendChild(go);
+  panel.appendChild(btns);
+};
+
+SCREENS.demog = function(){
+  panel.appendChild(el("h2","","Pár gyors kérdés"));
+  panel.appendChild(el("p","","Ez segít megérteni, kik vettek részt a kísérletben."));
+  function selectField(labelText, id, options){
+    var f = el("div","field");
+    var l = el("label","",labelText); l.htmlFor = id; f.appendChild(l);
+    var s = document.createElement("select"); s.id = id;
+    var opt0 = document.createElement("option"); opt0.value=""; opt0.textContent="— válassz —"; s.appendChild(opt0);
+    options.forEach(function(o){ var op=document.createElement("option"); op.value=o; op.textContent=o; s.appendChild(op); });
+    f.appendChild(s);
+    panel.appendChild(f);
+    return s;
+  }
+  var kor = selectField("Korosztályod","korSel",["18–20","21–24","25–29","30–39","40–49","50 felett"]);
+  var gyak = selectField("Milyen gyakran játszol videojátékkal (bármilyen eszközön)?","gyakSel",["szinte minden nap","hetente többször","ritkábban, mint hetente","nem szoktam"]);
+  var koltes = selectField("Szoktál mikrotranzakcióra (játékon belüli vásárlásra) költeni?","koltSel",["soha","ritkán, kis összeget","rendszeresen, kisebb összeget","rendszeresen, nagyobb összeget"]);
+  var btns = el("div","btnrow");
+  var go = btn("btn-primary","Tovább"); go.disabled = true;
+  function check(){ go.disabled = !(kor.value && gyak.value && koltes.value); }
+  [kor,gyak,koltes].forEach(function(s){ s.addEventListener("change", check); });
+  go.addEventListener("click", function(){
+    state.kor_sav = kor.value; state.gyakorisag = gyak.value; state.koltes_elozo = koltes.value;
+    next();
+  });
+  btns.appendChild(go);
+  panel.appendChild(btns);
+};
+
+SCREENS.intro = function(){
+  if (!state.csoport){ state.csoport = (Math.random() < 0.5) ? "A" : "B"; }
+  logEvent("besorolva", true);
+  panel.appendChild(el("h2","","Belépsz a boltba"));
+  panel.appendChild(el("div","player", ART.hero
+    + '<div><div class="who">Lángőr, 47. szint</div><dl><div><dt>Játszott idő</dt><dd>212 óra</dd></div><div><dt>Felszerelés</dt><dd>alap készlet</dd></div></dl></div>'));
+  panel.appendChild(el("p","","Képzeld el, hogy ezt a játékot már <strong>hónapok óta rendszeresen játszod</strong>, szereted, és szívesen töltenél bele egy kicsit, hogy szebb felszerelésed legyen."));
+  if (state.csoport === "A"){
+    panel.appendChild(el("p","","Ebben a boltban az árak közvetlenül <strong>forintban</strong> jelennek meg, és egy kattintással, azonnal tudsz vásárolni."));
+  } else {
+    panel.appendChild(el("p","","Ebben a boltban a tárgyakat a bolt saját valutájával, <strong>kredittel</strong> lehet megvásárolni. A kreditet forintért lehet feltölteni, az árfolyam <strong>1 Ft = 0,8 kredit</strong>."));
+    panel.appendChild(el("p","","A kezdő egyenleged 0 kredit. Ha egy tárgyhoz nincs elég kredited, a rendszer felajánlja a legkisebb csomagot, amivel megveheted."));
+  }
+  panel.appendChild(el("p","","Két tárgyat fogunk megnézni egymás után. Dönts úgy, ahogy egy valódi boltban is döntenél."));
+  var btns = el("div","btnrow");
+  var go = btn("btn-primary","A boltba"); go.addEventListener("click", next);
+  btns.appendChild(go); panel.appendChild(btns);
+};
+
+function walletBar(){
+  if (state.csoport !== "B") return null;
+  var w = el("div","wallet");
+  w.innerHTML = '<span>Egyenleged</span><b>'+fmtKredit(state.egyenleg)+'</b>';
+  return w;
+}
+
+function showcase(item){
+  var card = el("div","show " + item.rar);
+  var stage = el("div","stage", '<canvas aria-hidden="true"></canvas>' + ART[item.art] + '<span class="rar-chip">' + item.rarNev + '</span>');
+  card.appendChild(stage);
+  var meta = el("div","meta");
+  meta.appendChild(el("div","item-name", item.nev));
+  meta.appendChild(el("p","lore", item.lore));
+  var ul = el("ul","perks"); item.perks.forEach(function(t){ ul.appendChild(el("li","",t)); }); meta.appendChild(ul);
+
+  // sürgetés és társas bizonyíték (ugyanaz mindkét csoportban, nem kísérleti tényező)
+  var pr = el("div","pressure");
+  var urg = el("span","urgency"); pr.appendChild(urg);
+  var hatralevo = 7*60 + Math.floor(Math.random()*50);
+  function frissitOra(){
+    var m = Math.floor(hatralevo/60), s = hatralevo%60;
+    urg.innerHTML = "⏳ Ajánlat lejár: <b>" + m + ":" + (s<10?"0":"") + s + "</b>";
+    hatralevo--;
+    if (hatralevo < 0) hatralevo = 7*60 + 59;
+  }
+  frissitOra();
+  timer = setInterval(frissitOra, 1000);
+  var tegnap = 60 + Math.floor(Math.random()*70);
+  pr.appendChild(el("span","social","🔥 <b>"+tegnap+"</b> játékos vásárolta meg ma"));
+  meta.appendChild(pr); card.appendChild(meta);
+
+  var bar = el("div","pricebar");
+  bar.appendChild(el("span","","Ár"));
+  bar.appendChild(el("div","price", state.csoport === "A" ? fmtFt(item.ft) : fmtKredit(item.kredit) + "<small>"+fmtFt(item.ft)+" értékben</small>"));
+  card.appendChild(bar);
+  setTimeout(function(){ if (stage.isConnected) fx(stage.querySelector("canvas"), "armor"); }, 0);
+  return card;
+}
+
+function offerScreen(item, title, stateField, hajlField){
+  logEvent("ajanlat" + item.sorszam + "_megjelent", true);
+  panel.appendChild(el("h2","",title));
+  var wb = walletBar(); if (wb) panel.appendChild(wb);
+  panel.appendChild(showcase(item));
+
+  var banner = el("div",""); banner.hidden = true;
+  panel.appendChild(banner);
+
+  var btns = el("div","btnrow");
+  var buyBtn = btn("btn-buy","Megveszem most");
+  var passBtn = btn("btn-pass","Most nem, maradok az alap kinézetnél");
+  btns.appendChild(buyBtn); btns.appendChild(passBtn);
+  panel.appendChild(btns);
+
+  var hajlWrap = el("div","field"); hajlWrap.hidden = true;
+  hajlWrap.appendChild(el("p","","Függetlenül a döntésedtől: mennyire valószínű, hogy valós pénzből is megvásárolnád ezt a tárgyat?"));
+  var scale = el("div","scale");
+  for (var i=1;i<=5;i++){
+    (function(i){
+      var b = btn("", String(i));
+      b.addEventListener("click", function(){
+        Array.prototype.forEach.call(scale.children, function(c){ c.classList.remove("sel"); });
+        b.classList.add("sel");
+        state[hajlField] = i;
+        nextBtn.disabled = false;
+      });
+      scale.appendChild(b);
+    })(i);
+  }
+  hajlWrap.appendChild(scale);
+  hajlWrap.appendChild(el("div","scale-labels","<span>egyáltalán nem valószínű</span><span>nagyon valószínű</span>"));
+  panel.appendChild(hajlWrap);
+
+  var nextRow = el("div","btnrow"); nextRow.hidden = true;
+  var nextBtn = btn("btn-primary","Tovább"); nextBtn.disabled = true;
+  nextRow.appendChild(nextBtn);
+  panel.appendChild(nextRow);
+
+  function finish(accepted){
+    if (wb) wb.innerHTML = '<span>Egyenleged</span><b>'+fmtKredit(state.egyenleg)+'</b>';
+    state[stateField] = accepted ? 1 : 0;
+    buyBtn.disabled = true; passBtn.disabled = true;
+    banner.className = "banner " + (accepted ? "ok":"no");
+    banner.textContent = accepted ? "Megvásárolva! A tárgy a fiókodba került." : "Nem vetted meg a tárgyat. Folytatjuk.";
+    banner.hidden = false;
+    hajlWrap.hidden = false;
+    nextRow.hidden = false;
+  }
+
+  passBtn.addEventListener("click", function(){ finish(false); });
+  buyBtn.addEventListener("click", function(){
+    if (state.csoport === "A"){ finish(true); return; }
+    // B csoport: kredit egyenleg kezelése
+    if (state.egyenleg >= item.kredit){
+      state.egyenleg -= item.kredit;
+      finish(true);
+      return;
+    }
+    openTopup(item, function(didBuy){
+      if (didBuy) finish(true);
+    });
+  });
+  nextBtn.addEventListener("click", next);
+}
+
+function openTopup(item, cb){
+  var hiany = item.kredit - state.egyenleg;
+  var pack = PACKS[0];
+  for (var i=0;i<PACKS.length;i++){ if (PACKS[i].kredit >= hiany){ pack = PACKS[i]; break; } pack = PACKS[i]; }
+  if (pack.kredit < hiany){ // biztonsági tartalék, ha minden csomag kevés lenne
+    pack = { ft: Math.ceil(hiany/ARFOLYAM/50)*50, kredit: hiany };
+  }
+  var bg = el("div","modal-bg");
+  var box = el("div","panel modal");
+  box.setAttribute("role","dialog"); box.setAttribute("aria-modal","true");
+  box.appendChild(el("h2","","Nincs elég kredited"));
+  box.appendChild(el("p","","Jelenlegi egyenleged <strong>"+fmtKredit(state.egyenleg)+"</strong>. A legkisebb csomag, amivel megveheted ezt a tárgyat:"));
+  box.appendChild(el("div","pack", ART.coins + '<div><div class="pn">'+fmtKredit(pack.kredit)+' csomag</div><p class="pd">egyszeri feltöltés</p></div><div class="price">'+fmtFt(pack.ft)+'</div>'));
+  var btns = el("div","btnrow");
+  var buy = btn("btn-buy","Feltöltés és vásárlás");
+  var cancel = btn("btn-pass","Mégsem");
+  btns.appendChild(buy); btns.appendChild(cancel);
+  box.appendChild(btns);
+  bg.appendChild(box);
+  document.body.appendChild(bg);
+  logEvent("feltolto_megnyitva_" + item.sorszam);
+
+  cancel.addEventListener("click", function(){ logEvent("feltolto_megsem_" + item.sorszam); document.body.removeChild(bg); cb(false); });
+  buy.addEventListener("click", function(){
+    logEvent("feltolto_megvett_" + item.sorszam);
+    state.egyenleg += pack.kredit - item.kredit;
+    document.body.removeChild(bg);
+    cb(true);
+  });
+}
+
+SCREENS.offer1 = function(){ offerScreen(ITEM1, "Első ajánlat", 'elso_elfogadas', 'elso_hajlandosag'); };
+SCREENS.offer2 = function(){ offerScreen(ITEM2, "Második ajánlat", 'masodik_elfogadas', 'masodik_hajlandosag'); };
+
+SCREENS.estimate = function(){
+  logEvent("becsles_megjelent", true);
+  panel.appendChild(el("h2","","Utolsó kérdés"));
+  panel.appendChild(el("p","","Most a két tárgy áráról kérdezünk, <strong>függetlenül attól, hogy megvetted-e őket</strong>."));
+  panel.appendChild(el("p","","Ha <strong>mindkét tárgyat</strong> megvásároltad volna ebben a boltban, összesen hány <strong>forintot</strong> kellett volna kifizetned a saját pénzedből?"));
+  var f = el("div","field");
+  var l1 = el("label","","Becsült összeg (Ft)"); l1.htmlFor = "becslesInput"; f.appendChild(l1);
+  var inp = document.createElement("input"); inp.type="number"; inp.min="0"; inp.step="50"; inp.placeholder="Ft"; inp.id="becslesInput";
+  f.appendChild(inp);
+  panel.appendChild(f);
+
+  var f2 = el("div","field");
+  var l2 = el("label","","Mi alapján becsülted?"); l2.htmlFor = "indokSel"; f2.appendChild(l2);
+  var sel = document.createElement("select"); sel.id = "indokSel";
+  ["fejben összeadtam az árakat","ránézésre, megérzésből","nem gondolkodtam rajta sokat","egyéb"].forEach(function(o){
+    var op=document.createElement("option"); op.value=o; op.textContent=o; sel.appendChild(op);
+  });
+  f2.appendChild(sel);
+  panel.appendChild(f2);
+
+  var btns = el("div","btnrow");
+  var go = btn("btn-primary","Befejezés"); go.disabled = true;
+  inp.addEventListener("input", function(){ go.disabled = (inp.value === ""); });
+  go.addEventListener("click", function(){
+    state.becsles = Number(inp.value);
+    state.indok = sel.value;
+    saveAndFinish();
+  });
+  btns.appendChild(go); panel.appendChild(btns);
+};
+
+SCREENS.done = function(){
+  panel.appendChild(el("h2","","Köszönjük a részvételt!"));
+  if (state.saved === true){
+    panel.appendChild(el("div","banner ok","A válaszaidat sikeresen rögzítettük."));
+  } else {
+    panel.appendChild(el("div","banner no","A válaszod nem mentődött el automatikusan. Kérlek, másold ki az alábbi kódot, és küldd el a kutatónak (pl. üzenetben), hogy a válaszodat is figyelembe tudja venni."));
+    var code = el("div","code-box", JSON.stringify(exportRow()));
+    panel.appendChild(code);
+    var cbtn = btn("btn-ghost","Kód másolása");
+    cbtn.addEventListener("click", function(){
+      var txt = JSON.stringify(exportRow());
+      if (navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(txt).catch(function(){ fallbackCopy(code); });
+      } else { fallbackCopy(code); }
+    });
+    panel.appendChild(cbtn);
+  }
+  panel.appendChild(el("p","","Nem kértünk tőled személyes adatot, a válaszod anonim marad."));
+  panel.appendChild(el("h2","","Miről szólt a kutatás?"));
+  panel.appendChild(el("p","","A kísérlet azt vizsgálja, hogyan hat a vásárlási döntésekre és a költségek érzékelésére, ha egy játékbolt forint helyett saját valutával (kredittel) és csomagokban árul. A résztvevők egyik fele forintos, a másik fele kredites árakat látott. A tárgyak forintértéke mindkét változatban ugyanannyi volt."));
+  panel.appendChild(el("p","","A boltban szándékosan szerepelt néhány, a valódi játékboltokban gyakori sürgető elem: visszaszámláló, a vásárlók száma, kiemelt vásárlógomb és halvány elutasítás. Ezek kitaláltak voltak, és mindenkinél ugyanúgy jelentek meg."));
+  panel.appendChild(el("p","","A tárgyak, az árak és a karakter kitaláltak, valódi fizetés nem történt. Kérlek, a kutatás céljáról ne mesélj annak, aki még nem töltötte ki, mert az befolyásolná a válaszát."));
+  panel.appendChild(el("p","","Ha kérdésed van, ott tudsz írni, ahol a linket kaptad."));
+};
+function fallbackCopy(node){
+  var r = document.createRange(); r.selectNodeContents(node);
+  var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+}
+
+/* ---------- mentés: Google Apps Script webapp (nincs szükség bejelentkezésre) ---------- */
+var APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzkd1wX3_hW8-f0RTWlkNf3ybdVoFXwpor-nqPzL0CNKIoHoJDfepLEXrVWLsJRObvC/exec"; // lásd: README_BEALLITAS.md
+
+function exportRow(){
+  return {
+    csoport: state.csoport,
+    elso_elfogadas: state.elso_elfogadas,
+    elso_hajlandosag: state.elso_hajlandosag,
+    masodik_elfogadas: state.masodik_elfogadas,
+    masodik_hajlandosag: state.masodik_hajlandosag,
+    becsles: state.becsles,
+    indok: state.indok,
+    kor_sav: state.kor_sav,
+    gyakorisag: state.gyakorisag,
+    koltes_elozo: state.koltes_elozo,
+    idotartam_mp: Math.round((Date.now()-state.started)/1000),
+    ts: new Date().toISOString(),
+    valasz_id: state.id
+  };
+}
+
+function saveAndFinish(){
+  goto("done"); // azonnal megmutatjuk a köszönő képernyőt, a küldés a háttérben fut
+  var row = exportRow();
+  if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.indexOf("IDE_MASOLD") === 0){
+    state.saved = false; render(); return;
+  }
+  var body = new URLSearchParams();
+  Object.keys(row).forEach(function(k){ body.append(k, row[k] == null ? "" : row[k]); });
+  fetch(APPS_SCRIPT_URL, { method:"POST", mode:"no-cors", body: body })
+    .then(function(){ state.saved = true; render(); })
+    .catch(function(){ state.saved = false; render(); });
+}
+
+/* egyszerű teszt mód: ?test=A vagy ?test=B a linkhez fűzve kényszeríti a csoportot
+   (a válasz ekkor sem mentődik), hogy magad is ki tudd próbálni mindkét oldalt */
+var saveAndFinish_disabled = false;
+(function(){
+  var m = /[?&]test=([AB])/.exec(location.search);
+  if (m) { state.csoport = m[1]; saveAndFinish_disabled = true; }
+})();
+var realSaveAndFinish = saveAndFinish;
+saveAndFinish = function(){
+  if (saveAndFinish_disabled){ goto("done"); state.saved = null; render(); return; }
+  realSaveAndFinish();
+};
+
+render();
+})();
+</script>
+</body>
+</html>
